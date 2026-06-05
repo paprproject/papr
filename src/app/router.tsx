@@ -8,6 +8,9 @@ import B2BPage from "../pages/B2B/B2BPage";
 import FAQPage from "../pages/FAQ/FAQPage";
 import CartPage from "../pages/Cart/CartPage";
 import CheckoutPage from "../pages/Checkout/CheckoutPage";
+import LoginPage from "../pages/Login/LoginPage";
+import OrdersPage from "../pages/Orders/OrdersPage";
+import WhyPage from "../pages/Why/WhyPage";
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +25,9 @@ export const router = createBrowserRouter([
       { path: "faq", element: <FAQPage /> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
+      { path: "why", element: <WhyPage /> },
+      { path: "orders", element: <OrdersPage /> },
+      { path: "login", element: <LoginPage /> },
     ],
   },
 ]);
