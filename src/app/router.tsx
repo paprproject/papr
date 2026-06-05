@@ -11,6 +11,7 @@ import CheckoutPage from "../pages/Checkout/CheckoutPage";
 import LoginPage from "../pages/Login/LoginPage";
 import OrdersPage from "../pages/Orders/OrdersPage";
 import WhyPage from "../pages/Why/WhyPage";
+import ProductDetailsPage from "../pages/ProductDetails/ProductDetailsPage";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "why", element: <WhyPage /> },
       { path: "orders", element: <OrdersPage /> },
       { path: "login", element: <LoginPage /> },
+      { path: "products/:id", element: <ProductDetailsPage /> },
     ],
   },
 ]);
