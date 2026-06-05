@@ -2,7 +2,7 @@
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-[#f5f1ea] px-6 py-20 lg:px-12 lg:py-28">
+    <section className="relative overflow-hidden bg-[#f5f1ea] px-6 py-16 lg:px-12 lg:py-24">
       <div className="mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-2">
         <div>
           <div className="mb-8 inline-flex rounded-full border border-black/10 bg-white/60 px-5 py-2 text-sm font-medium text-black/60">
@@ -10,7 +10,7 @@ function HeroSection() {
             Produced in Indonesia · Delivered across Singapore
           </div>
 
-          <h1 className="text-6xl font-black leading-none tracking-tight md:text-7xl">
+          <h1 className="text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl xl:text-8xl">
             Print that
             <span className="block text-orange-600">moves</span>
             <span className="block font-light italic">brands.</span>
