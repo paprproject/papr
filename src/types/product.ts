@@ -1,8 +1,9 @@
 export type Product = {
   id: string;
   name: string;
-  category: string;
   description: string;
-  startingPrice: number;
-  deliveryDays: string;
+  category: string;
+  starting_price: number;
+  delivery_days: string;
+  created_at: string;
 };

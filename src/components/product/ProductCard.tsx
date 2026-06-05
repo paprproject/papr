@@ -16,11 +16,11 @@ function ProductCard({ product }: ProductCardProps) {
       <div className="mt-6 flex items-end justify-between">
         <div>
           <p className="text-sm text-black/50">From</p>
-          <p className="text-2xl font-black">${product.startingPrice}</p>
+          <p className="text-2xl font-black">${product.starting_price}</p>
         </div>
 
         <p className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white">
-          {product.deliveryDays}
+          {product.delivery_days}
         </p>
       </div>
     </article>

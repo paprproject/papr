@@ -1,3 +1,6 @@
+// Test Connection
+import TestConnection from "./TestConnection";
+
 function HomePage() {
   return (
     <section className="mx-auto flex min-h-[80vh] max-w-7xl items-center px-8">
@@ -20,6 +23,8 @@ function HomePage() {
           Premium advertising materials, branded merch,
           and custom packaging for modern businesses.
         </p>
+
+        <TestConnection />
 
         <div className="mt-10 flex gap-4">
           

@@ -1,27 +1,50 @@
+import { useEffect, useState } from "react";
 import ProductCard from "../../components/product/ProductCard";
-import { products } from "../../data/products";
+import { getProducts } from "../../services/productService";
+import type { Product } from "../../types/product";
 
 function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+        alert("Failed to load products. Check console.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-10">
+        Loading products...
+      </div>
+    );
+  }
+
+  
+
   return (
     <section className="mx-auto max-w-7xl px-8 py-20">
-      <div className="max-w-2xl">
-        <p className="text-sm font-medium uppercase tracking-widest text-orange-600">
-          Products
-        </p>
+      <h1 className="text-5xl font-black">
+        Products
+      </h1>
 
-        <h1 className="mt-4 text-6xl font-black tracking-tight">
-          Print products for every business moment.
-        </h1>
-
-        <p className="mt-6 text-xl text-black/60">
-          Start with our most popular products, then customize size, paper,
-          quantity, finish, and artwork.
-        </p>
-      </div>
-
-      <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard
+            key={product.id}
+            product={product}
+          />
         ))}
       </div>
     </section>
