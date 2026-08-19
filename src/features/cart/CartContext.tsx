@@ -7,6 +7,13 @@ export type CartItem = {
   size: string;
   material: string;
   quantity: string;
+  finish?: string;
+  sides?: string;
+  turnaround?: string;
+  designMethod?: string;
+  designFileName?: string;
+  unitPrice?: number;
+  totalPrice?: number;
 };
 
 type CartContextValue = {
@@ -53,6 +60,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// This hook intentionally lives beside its provider so cart state has one public entry point.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCart() {
   const context = useContext(CartContext);
 

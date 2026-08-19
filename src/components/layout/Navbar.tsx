@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Phone, ShoppingBag, UserRound, ClipboardList } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
+import ProfileMenu from "./ProfileMenu";
 
 function Navbar() {
   return (
@@ -11,39 +12,25 @@ function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-8 text-sm font-semibold text-black/70 lg:flex">
-            <Link to="/why">Why PAPR</Link>
+            <Link to="/">Home</Link>
             <Link to="/products">Products</Link>
-            <Link to="/shop">Shop</Link>
             <Link to="/pricing">Pricing</Link>
+            <Link to="/quote">Instant Quote</Link>
             <Link to="/b2b">B2B</Link>
-            <Link to="/faq">FAQ</Link>
+            <Link to="/contact">Contact Us</Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
-            to="/orders"
-            className="hidden items-center gap-2 rounded-full border border-black/10 px-4 py-3 text-sm font-bold text-black/70 transition hover:bg-white md:flex"
-          >
-            <ClipboardList size={18} />
-            Orders
-          </Link>
-
-          <Link
             to="/cart"
             className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-3 text-sm font-bold text-black/70 transition hover:bg-white"
           >
             <ShoppingBag size={18} />
-            Cart
+            <span className="hidden sm:inline">Cart</span>
           </Link>
 
-          <Link
-            to="/login"
-            className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-bold text-white transition hover:scale-105"
-          >
-            <UserRound size={18} />
-            Get started
-          </Link>
+          <ProfileMenu />
         </div>
       </div>
     </header>

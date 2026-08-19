@@ -1,4 +1,5 @@
 // src/components/home/HeroSection.tsx
+import { Link } from "react-router-dom";
 
 function HeroSection() {
   return (
@@ -81,9 +82,12 @@ function HeroSection() {
               ))}
             </div>
 
-            <button className="mt-4 w-full rounded-2xl bg-black py-4 font-bold text-white">
-              ✏️ Open design editor
-            </button>
+            <Link
+            to="/editor/new"
+            className="mt-4 block w-full rounded-2xl bg-black py-4 text-center font-bold text-white transition hover:bg-orange-600"
+            > ✏️ Open design editor
+            </Link>
+            
           </div>
 
           <div className="absolute -right-4 -top-8 rounded-2xl border border-black/10 bg-white px-6 py-4 shadow-xl">
