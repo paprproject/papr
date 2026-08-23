@@ -4,13 +4,20 @@ import type {
   SavedAddress,
   SavedAddressDraft,
 } from "../account/savedAddresses";
+import type {
+  CustomerFile,
+  CustomerProfile,
+} from "../account/accountService";
 
 export type AuthContextValue = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  accountError: string;
+  profile: CustomerProfile | null;
   favoriteProductIds: string[];
   savedAddresses: SavedAddress[];
+  customerFiles: CustomerFile[];
   signUp: (
     email: string,
     password: string,
@@ -27,6 +34,8 @@ export type AuthContextValue = {
   upsertSavedAddress: (address: SavedAddressDraft) => Promise<void>;
   removeSavedAddress: (addressId: string) => Promise<void>;
   setDefaultAddress: (addressId: string) => Promise<void>;
+  refreshAccountData: () => Promise<void>;
+  createCustomerFileDownloadUrl: (fileId: string) => Promise<string>;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

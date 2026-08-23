@@ -20,7 +20,8 @@ type AuthMode = "login" | "signup";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signIn, signUp, signOut } =
+    useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
@@ -106,10 +107,7 @@ function LoginPage() {
   }
 
   if (user) {
-    const displayName =
-      typeof user.user_metadata.full_name === "string"
-        ? user.user_metadata.full_name
-        : "PAPR customer";
+    const displayName = profile?.fullName || "PAPR customer";
 
     return (
       <section className="min-h-[70vh] bg-[#f5f1ea] px-5 py-16 sm:px-8 lg:py-24">

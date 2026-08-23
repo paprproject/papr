@@ -1,17 +1,11 @@
 function TickerBar() {
   const items = [
     "   FACTORY-DIRECT PRICING",
-    " | ",
     "   98.4% SATISFACTION RATE",
-    " | ",
     "   12,000+ ORDERS FULFILLED",
-    " | ",
     "   PRODUCED IN BATAM",
-    " | ",
     "   FREE DESIGN EDITOR ",
-    " | ",
     "   NO HIDDEN FEES",
-    " | ",
     "   B2B PRICING AVAILABLE",
   ];
 

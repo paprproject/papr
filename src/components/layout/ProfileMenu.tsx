@@ -48,7 +48,7 @@ function getInitials(name: string) {
 }
 
 function ProfileMenu() {
-  const { user, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -87,10 +87,7 @@ function ProfileMenu() {
   }
 
   const displayName =
-    typeof user.user_metadata.full_name === "string" &&
-    user.user_metadata.full_name.trim()
-      ? user.user_metadata.full_name.trim()
-      : user.email?.split("@")[0] || "Account";
+    profile?.fullName.trim() || user.email?.split("@")[0] || "Account";
   const initials = getInitials(displayName) || "P";
 
   async function handleSignOut() {

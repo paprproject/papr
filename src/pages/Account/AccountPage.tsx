@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import ProductCard from "../../components/product/ProductCard";
+import CustomerArtworkPanel from "../../features/account/CustomerArtworkPanel";
 import SavedAddressesPanel from "../../features/account/SavedAddressesPanel";
 import { useAuth } from "../../features/auth/useAuth";
 import { useCart } from "../../features/cart/CartContext";
@@ -70,12 +71,15 @@ function AccountPage() {
   const {
     user,
     loading: authLoading,
+    accountError,
+    profile,
     favoriteProductIds,
     savedAddresses,
+    customerFiles,
     updateProfile,
     signOut,
   } = useAuth();
-  const { cartItems } = useCart();
+  const { cartItems, cartLoading, cartError } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const activeTab: AccountTab = isAccountTab(requestedTab)
@@ -105,7 +109,7 @@ function AccountPage() {
     };
   }, []);
 
-  if (authLoading) {
+  if (authLoading || cartLoading) {
     return (
       <section className="min-h-[70vh] bg-[#f5f1ea] px-6 py-16">
         <div className="mx-auto grid max-w-7xl animate-pulse gap-6 lg:grid-cols-[270px_1fr]">
@@ -118,18 +122,9 @@ function AccountPage() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const profileFullName =
-    typeof user.user_metadata.full_name === "string"
-      ? user.user_metadata.full_name
-      : "";
-  const profileCompany =
-    typeof user.user_metadata.company === "string"
-      ? user.user_metadata.company
-      : "";
-  const profileWhatsapp =
-    typeof user.user_metadata.whatsapp === "string"
-      ? user.user_metadata.whatsapp
-      : "";
+  const profileFullName = profile?.fullName ?? "";
+  const profileCompany = profile?.company ?? "";
+  const profileWhatsapp = profile?.whatsapp ?? "";
   const displayName =
     profileFullName.trim() || user.email?.split("@")[0] || "Account";
   const initials = getInitials(displayName) || "P";
@@ -244,6 +239,11 @@ function AccountPage() {
         </aside>
 
         <main className="min-w-0 rounded-3xl border border-black/10 bg-[#faf7f1] p-5 shadow-sm sm:p-7 lg:p-9">
+          {(accountError || cartError) && (
+            <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {accountError || cartError}
+            </p>
+          )}
           {activeTab === "overview" && (
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#d8440d]">
@@ -260,7 +260,10 @@ function AccountPage() {
               <div className="mt-8 grid grid-cols-2 gap-3 xl:grid-cols-5">
                 <StatCard value="0" label="Confirmed orders" />
                 <StatCard value={String(cartItems.length)} label="Items in cart" />
-                <StatCard value="0" label="Saved artworks" />
+                <StatCard
+                  value={String(customerFiles.length)}
+                  label="Saved artworks"
+                />
                 <StatCard
                   value={String(favoriteProductIds.length)}
                   label="Pinned favorites"
@@ -407,27 +410,7 @@ function AccountPage() {
             </div>
           )}
 
-          {activeTab === "artwork" && (
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#d8440d]">
-                Saved artwork
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">
-                Your reusable design library.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-black/50">
-                Approved and saved artwork will live here for quick edits and
-                one-click reorders.
-              </p>
-              <EmptyAccountState
-                icon={Palette}
-                title="No saved artwork yet"
-                description="Open a product to start designing with PAPR's browser editor and templates."
-                actionLabel="Choose a product"
-                actionTo="/products"
-              />
-            </div>
-          )}
+          {activeTab === "artwork" && <CustomerArtworkPanel />}
 
           {activeTab === "favorites" && (
             <div>

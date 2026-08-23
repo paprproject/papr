@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
+import { useAuth } from "../../features/auth/useAuth";
 import { useCart } from "../../features/cart/CartContext";
 import { getProductConfiguration } from "../../features/products/productConfiguration";
 
@@ -12,11 +14,84 @@ function formatMoney(value: number) {
 }
 
 function CartPage() {
-  const { cartItems, removeFromCart, clearCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    cartItems,
+    cartLoading,
+    cartError,
+    removeFromCart,
+    clearCart,
+  } = useCart();
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
   const subtotal = cartItems.reduce(
     (sum, item) => sum + (item.totalPrice ?? item.product.starting_price),
     0,
   );
+
+  async function handleRemove(itemId: string) {
+    setActionError("");
+    try {
+      setBusyAction(`remove:${itemId}`);
+      await removeFromCart(itemId);
+    } catch (error) {
+      console.error("Failed to remove private cart item:", error);
+      setActionError("We couldn't remove that item. Please try again.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleClearCart() {
+    setActionError("");
+    try {
+      setBusyAction("clear");
+      await clearCart();
+    } catch (error) {
+      console.error("Failed to clear private cart:", error);
+      setActionError("We couldn't clear your cart. Please try again.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  if (authLoading || cartLoading) {
+    return (
+      <section className="min-h-[70vh] bg-[#f5f1ea] px-6 py-20">
+        <div className="mx-auto max-w-7xl animate-pulse space-y-6">
+          <div className="h-14 w-72 rounded-2xl bg-black/10" />
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="h-72 rounded-3xl bg-black/10" />
+            <div className="h-72 rounded-3xl bg-black/10" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="min-h-[70vh] bg-[#f5f1ea] px-6 py-24">
+        <div className="mx-auto max-w-xl rounded-3xl border border-black/10 bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-[#ef4d11]/10 text-[#ef4d11]">
+            <ShieldCheck size={28} />
+          </div>
+          <h1 className="mt-6 text-4xl font-black tracking-tight">
+            Sign in to access your cart
+          </h1>
+          <p className="mt-3 text-lg text-black/55">
+            Cart contents are stored privately under each customer account.
+          </p>
+          <Link
+            to="/login"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-black px-7 py-4 font-extrabold text-white transition hover:bg-[#ef4d11]"
+          >
+            Sign in securely <ArrowRight size={18} />
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -31,6 +106,11 @@ function CartPage() {
           <p className="mt-3 text-lg text-black/55">
             Choose a print product, configure it, and it will appear here.
           </p>
+          {cartError && (
+            <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {cartError}
+            </p>
+          )}
           <Link
             to="/products"
             className="mt-8 inline-flex items-center gap-2 rounded-full bg-black px-7 py-4 font-extrabold text-white transition hover:bg-[#ef4d11]"
@@ -56,12 +136,20 @@ function CartPage() {
           </div>
           <button
             type="button"
-            onClick={clearCart}
-            className="flex w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 py-3 text-sm font-extrabold text-black/60 transition hover:border-red-300 hover:text-red-700"
+            disabled={busyAction !== null}
+            onClick={handleClearCart}
+            className="flex w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 py-3 text-sm font-extrabold text-black/60 transition hover:border-red-300 hover:text-red-700 disabled:opacity-50"
           >
-            <Trash2 size={16} /> Clear cart
+            <Trash2 size={16} />
+            {busyAction === "clear" ? "Clearing…" : "Clear cart"}
           </button>
         </div>
+
+        {(cartError || actionError) && (
+          <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {actionError || cartError}
+          </p>
+        )}
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-5">
@@ -135,10 +223,14 @@ function CartPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeFromCart(item.id)}
-                      className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-bold text-black/50 transition hover:border-red-300 hover:text-red-700"
+                      disabled={busyAction !== null}
+                      onClick={() => handleRemove(item.id)}
+                      className="flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-bold text-black/50 transition hover:border-red-300 hover:text-red-700 disabled:opacity-50"
                     >
-                      <Trash2 size={14} /> Remove
+                      <Trash2 size={14} />
+                      {busyAction === `remove:${item.id}`
+                        ? "Removing…"
+                        : "Remove"}
                     </button>
                   </div>
                 </article>

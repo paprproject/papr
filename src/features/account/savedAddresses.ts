@@ -18,61 +18,30 @@ export type SavedAddressDraft = Omit<SavedAddress, "id" | "isDefault"> & {
   makeDefault?: boolean;
 };
 
-function readString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
+export type SavedAddressRow = {
+  id: string;
+  label: string;
+  recipient_name: string;
+  company: string | null;
+  phone: string;
+  line_1: string;
+  line_2: string | null;
+  postal_code: string;
+  country_code: string;
+  is_default: boolean;
+};
 
-export function parseSavedAddresses(value: unknown): SavedAddress[] {
-  if (!Array.isArray(value)) return [];
-
-  const seenIds = new Set<string>();
-  const addresses = value.flatMap<SavedAddress>((entry) => {
-    if (!entry || typeof entry !== "object") return [];
-
-    const address = entry as Record<string, unknown>;
-    const id = readString(address.id);
-    const label = readString(address.label);
-    const recipientName = readString(address.recipientName);
-    const phone = readString(address.phone);
-    const line1 = readString(address.line1);
-    const postalCode = readString(address.postalCode);
-
-    if (
-      !id ||
-      seenIds.has(id) ||
-      !label ||
-      !recipientName ||
-      !phone ||
-      !line1 ||
-      !postalCode
-    ) {
-      return [];
-    }
-
-    seenIds.add(id);
-    return [
-      {
-        id,
-        label,
-        recipientName,
-        company: readString(address.company),
-        phone,
-        line1,
-        line2: readString(address.line2),
-        postalCode,
-        countryCode: "SG",
-        isDefault: address.isDefault === true,
-      },
-    ];
-  });
-
-  const defaultIndex = Math.max(
-    0,
-    addresses.findIndex((address) => address.isDefault),
-  );
-
-  return addresses.map((address, index) => ({
-    ...address,
-    isDefault: index === defaultIndex,
-  }));
+export function savedAddressFromRow(row: SavedAddressRow): SavedAddress {
+  return {
+    id: row.id,
+    label: row.label,
+    recipientName: row.recipient_name,
+    company: row.company ?? "",
+    phone: row.phone,
+    line1: row.line_1,
+    line2: row.line_2 ?? "",
+    postalCode: row.postal_code,
+    countryCode: "SG",
+    isDefault: row.is_default,
+  };
 }

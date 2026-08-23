@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   ShoppingCart,
+  Star,
   Truck,
   Upload,
 } from "lucide-react";
@@ -22,9 +23,10 @@ import {
   getProductConfiguration,
   type ConfigOption,
 } from "../../features/products/productConfiguration";
+import { getProductPresentation } from "../../features/products/productPresentation";
 
 type DesignMethod = "editor" | "upload" | null;
-type AddStatus = "idle" | "error" | "success";
+type AddStatus = "idle" | "error" | "submitting" | "success";
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("en-SG", {
@@ -66,8 +68,9 @@ function ProductDetailsPage() {
   const [quantity, setQuantity] = useState(100);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [designMethod, setDesignMethod] = useState<DesignMethod>(null);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [addStatus, setAddStatus] = useState<AddStatus>("idle");
+  const [addError, setAddError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -139,8 +142,9 @@ function ProductDetailsPage() {
         setQuantity(normalizedQuantity);
         setPreviewIndex(0);
         setDesignMethod(null);
-        setUploadedFileName("");
+        setUploadedFile(null);
         setAddStatus("idle");
+        setAddError("");
       } catch (loadError) {
         if (cancelled) return;
         console.error("Failed to load product:", loadError);
@@ -229,16 +233,20 @@ function ProductDetailsPage() {
   function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setUploadedFileName(file.name);
+    setUploadedFile(file);
     setDesignMethod("upload");
     setAddStatus("idle");
+    setAddError("");
   }
 
-  function handleAddToCart() {
+  async function handleAddToCart() {
     if (!product || !configuration) return;
 
     if (!designMethod) {
       setAddStatus("error");
+      setAddError(
+        "Choose the online editor or upload your artwork before adding this product to your cart.",
+      );
       document
         .getElementById("design-options")
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -256,21 +264,34 @@ function ProductDetailsPage() {
 
     if (!size || !stock || !finish || !sides || !turnaround) return;
 
-    addToCart({
-      id: crypto.randomUUID(),
-      product,
-      size: size.label,
-      material: stock.label,
-      finish: finish.label,
-      sides: sides.label,
-      turnaround: `${turnaround.label} ${turnaround.description ?? "days"}`,
-      quantity: String(quantity),
-      designMethod: designMethod === "editor" ? "Online editor" : "File upload",
-      designFileName: uploadedFileName || undefined,
-      unitPrice: pricing.perUnit,
-      totalPrice: pricing.total,
-    });
-    setAddStatus("success");
+    try {
+      setAddStatus("submitting");
+      setAddError("");
+      await addToCart({
+        product,
+        size: size.label,
+        material: stock.label,
+        finish: finish.label,
+        sides: sides.label,
+        turnaround: `${turnaround.label} ${turnaround.description ?? "days"}`,
+        quantity: String(quantity),
+        designMethod:
+          designMethod === "editor" ? "Online editor" : "File upload",
+        designFile: uploadedFile ?? undefined,
+        designFileName: uploadedFile?.name,
+        unitPrice: pricing.perUnit,
+        totalPrice: pricing.total,
+      });
+      setAddStatus("success");
+    } catch (cartError) {
+      console.error("Failed to add private cart item:", cartError);
+      setAddStatus("error");
+      setAddError(
+        cartError instanceof Error
+          ? cartError.message
+          : "We couldn't save this item to your private cart. Please try again.",
+      );
+    }
   }
 
   if (loading) {
@@ -312,6 +333,25 @@ function ProductDetailsPage() {
   const selectedSizeOption = findOption(configuration.sizes, selectedSize);
   const editorLink = `/editor/new?productId=${encodeURIComponent(product.id)}&size=${encodeURIComponent(selectedSizeOption?.label ?? "Standard")}`;
   const isFlyer = product.name.toLowerCase().includes("flyer");
+  const presentation = getProductPresentation(product);
+  const deliveryTime = product.delivery_days.replace(
+    /(\d)\s*-\s*(\d)/g,
+    "$1–$2",
+  );
+  const selectionSummary = [
+    { label: "Size", value: selectedSizeOption?.label ?? "Standard" },
+    {
+      label: "Paper",
+      value:
+        findOption(configuration.stocks, selectedStock)?.label ?? "Standard",
+    },
+    {
+      label: "Finish",
+      value:
+        findOption(configuration.finishes, selectedFinish)?.label ?? "Matte",
+    },
+    { label: "Quantity", value: quantity + " pcs" },
+  ];
 
   return (
     <div className="bg-[#f5f1ea] text-[#11100e]">
@@ -347,8 +387,8 @@ function ProductDetailsPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[minmax(0,1fr)_390px]">
-        <main className="min-w-0 border-black/10 px-5 py-9 sm:px-8 lg:border-r lg:px-12 lg:py-12">
+      <section className="border-b border-black/10 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
           <nav className="flex flex-wrap items-center gap-2 text-sm font-medium text-black/50">
             <Link className="transition hover:text-black" to="/">
               Home
@@ -361,21 +401,134 @@ function ProductDetailsPage() {
             <span className="text-black/75">{product.name}</span>
           </nav>
 
-          <div className="mt-9">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-4xl font-black tracking-[-0.04em] sm:text-5xl">
-                {product.name}
-              </h1>
-              <span className="rounded-full bg-[#ef4d11]/10 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-[#c93806]">
+          <div className="mt-7 grid items-center gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)] lg:gap-14">
+            <div className="relative min-h-[360px] overflow-hidden rounded-[2rem] border border-black/10 bg-[#eee8dc] sm:min-h-[480px]">
+              {presentation.imageMode === "single" ? (
+                <img
+                  src={presentation.imageUrl}
+                  alt={presentation.imageAlt}
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : presentation.imageMode === "sprite" ? (
+                <div
+                  role="img"
+                  aria-label={presentation.imageAlt}
+                  className="absolute inset-0 bg-no-repeat"
+                  style={{
+                    backgroundImage: "url(" + presentation.imageUrl + ")",
+                    backgroundPosition: presentation.imagePosition + " center",
+                    backgroundSize: "200% auto",
+                  }}
+                />
+              ) : (
+                <div
+                  role="img"
+                  aria-label={presentation.imageAlt}
+                  className="absolute inset-0 grid place-items-center"
+                  style={{ backgroundColor: presentation.imageBackground }}
+                >
+                  <span className="text-8xl drop-shadow-sm" aria-hidden="true">
+                    {presentation.imageSymbol}
+                  </span>
+                </div>
+              )}
+              {presentation.badge && (
+                <span className="absolute left-5 top-5 rounded-full bg-white/95 px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] shadow-sm backdrop-blur">
+                  {presentation.badge}
+                </span>
+              )}
+              <div className="absolute bottom-5 left-5 rounded-full bg-black/80 px-4 py-2 text-xs font-bold text-white backdrop-blur">
+                PAPR product preview
+              </div>
+            </div>
+
+            <div className="py-2">
+              <span className="inline-flex rounded-full bg-[#ef4d11]/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#c93806]">
                 {product.category}
               </span>
-            </div>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-black/55 sm:text-lg">
-              {configuration.subtitle}
-            </p>
-          </div>
+              <h1 className="mt-5 text-4xl font-black tracking-[-0.045em] sm:text-5xl lg:text-6xl">
+                {product.name}
+              </h1>
+              <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
+                <span
+                  className="flex items-center gap-0.5 text-[#ef7a22]"
+                  aria-label={presentation.rating.toFixed(1) + " out of 5 stars"}
+                >
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <Star
+                      key={index}
+                      size={17}
+                      fill="currentColor"
+                      aria-hidden="true"
+                    />
+                  ))}
+                </span>
+                <strong>{presentation.rating.toFixed(1)}</strong>
+                <span className="text-black/45">
+                  ({presentation.reviewCount.toLocaleString("en-SG")} reviews)
+                </span>
+                <span className="text-black/20">·</span>
+                <span className="text-black/55">
+                  {presentation.orderCount.toLocaleString("en-SG")}+ orders
+                </span>
+              </div>
+              <p className="mt-5 text-lg leading-8 text-black/60">
+                {product.description}
+              </p>
 
-          <div className="mt-12 space-y-12">
+              <div className="mt-8 flex flex-wrap items-end gap-x-8 gap-y-5 border-y border-black/10 py-6">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-black/40">
+                    Starting from
+                  </p>
+                  <p className="mt-1 text-3xl font-black tracking-tight">
+                    {formatMoney(product.starting_price)}
+                  </p>
+                  <p className="mt-1 text-sm text-black/45">
+                    {formatMoney(
+                      product.starting_price / configuration.minimumQuantity,
+                    )}{" "}
+                    each at {configuration.minimumQuantity} pcs
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="grid size-10 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+                    <Truck size={19} />
+                  </span>
+                  <span>
+                    <strong className="block">Ready in {deliveryTime}</strong>
+                    <span className="text-black/45">Singapore-wide delivery</span>
+                  </span>
+                </div>
+              </div>
+
+              <a
+                href="#configure-product"
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-black px-7 py-4 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-[#ef4d11]"
+              >
+                Configure this product
+                <ChevronRight size={17} className="rotate-90" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="configure-product" className="scroll-mt-24">
+        <div className="mx-auto grid max-w-7xl lg:grid-cols-[minmax(0,1fr)_330px]">
+          <main className="min-w-0 px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#d8440d]">
+              Make it yours
+            </p>
+            <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+              Configure your print
+            </h2>
+            <p className="mt-3 max-w-2xl leading-7 text-black/55">
+              Choose your format, paper, finish, quantity, and artwork. Your
+              preview and price update as you go.
+            </p>
+
+            <div className="mt-10 space-y-12">
             <fieldset>
               <legend className="text-xs font-extrabold uppercase tracking-[0.14em] text-black/55">
                 Size <span className="text-[#ef4d11]">*</span>
@@ -635,8 +788,9 @@ function ProductDetailsPage() {
                       type="button"
                       onClick={() => {
                         setDesignMethod("editor");
-                        setUploadedFileName("");
+                        setUploadedFile(null);
                         setAddStatus("idle");
+                        setAddError("");
                       }}
                       className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
                         designMethod === "editor"
@@ -668,38 +822,193 @@ function ProductDetailsPage() {
                   </div>
                   <h2 className="mt-5 text-xl font-black">Upload print-ready file</h2>
                   <p className="mt-2 text-sm leading-6 text-black/50">
-                    PDF preferred. We also accept AI, EPS, PSD, PNG, TIFF, or JPG files up to 50 MB.
+                    Upload a PDF, PNG, TIFF, or JPG file up to 50 MB. Files are
+                    stored privately under your account.
                   </p>
                   <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#ef4d11]">
                     <Upload size={15} />
-                    {uploadedFileName ? "Replace file" : "Choose file"}
+                    {uploadedFile ? "Replace file" : "Choose file"}
                     <input
                       className="sr-only"
                       type="file"
-                      accept=".pdf,.ai,.eps,.psd,.png,.tif,.tiff,.jpg,.jpeg"
+                      accept=".pdf,.png,.tif,.tiff,.jpg,.jpeg,application/pdf,image/png,image/jpeg,image/tiff"
                       onChange={handleUpload}
                     />
                   </label>
-                  {uploadedFileName && (
+                  {uploadedFile && (
                     <p className="mt-3 flex items-center gap-2 truncate text-sm font-bold text-emerald-700">
                       <FileCheck2 size={16} />
-                      {uploadedFileName}
+                      {uploadedFile.name}
                     </p>
                   )}
                 </div>
               </div>
-              {addStatus === "error" && (
+              {addStatus === "error" && !designMethod && (
                 <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                  Choose the online editor or upload your artwork before adding this product to your cart.
+                  {addError}
                 </p>
               )}
             </fieldset>
-          </div>
+            </div>
+
+            <section
+              id="purchase-panel"
+              aria-labelledby="order-summary-heading"
+              className="mt-14 overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-sm"
+            >
+              <div className="grid xl:grid-cols-[minmax(0,0.9fr)_minmax(320px,1.1fr)]">
+                <div className="p-6 sm:p-8">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#d8440d]">
+                    Final review
+                  </p>
+                  <h2
+                    id="order-summary-heading"
+                    className="mt-2 text-3xl font-black tracking-[-0.04em]"
+                  >
+                    Price summary
+                  </h2>
+                  <dl className="mt-7 space-y-4 text-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-black/55">
+                        Base price ({configuration.minimumQuantity} pcs)
+                      </dt>
+                      <dd className="font-extrabold">
+                        {formatMoney(product.starting_price)}
+                      </dd>
+                    </div>
+                    {pricing.optionAdjustment !== 0 && (
+                      <div className="flex items-center justify-between gap-4">
+                        <dt className="text-black/55">Selected upgrades</dt>
+                        <dd className="font-extrabold">
+                          {pricing.optionAdjustment > 0 ? "+" : "−"}
+                          {formatMoney(Math.abs(pricing.optionAdjustment))}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-black/55">
+                        Quantity ({quantity} pcs)
+                      </dt>
+                      <dd className="font-extrabold">
+                        ×{pricing.quantityMultiplier.toFixed(1)}
+                      </dd>
+                    </div>
+                    {pricing.volumeDiscount > 0 && (
+                      <div className="flex items-center justify-between gap-4 text-emerald-700">
+                        <dt>Volume discount</dt>
+                        <dd className="font-extrabold">
+                          −{formatMoney(pricing.volumeDiscount)}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  <div className="my-6 h-px bg-black/10" />
+                  <div className="flex items-end justify-between gap-4">
+                    <span className="text-lg font-black">Total</span>
+                    <span className="text-right text-4xl font-black tracking-tight text-[#e5470e]">
+                      {formatMoney(pricing.total)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-right text-xs text-black/45">
+                    {formatMoney(pricing.perUnit)} per piece · tax calculated at
+                    checkout
+                  </p>
+                </div>
+
+                <div className="border-t border-black/10 bg-[#11100e] p-6 text-white sm:p-8 xl:border-l xl:border-t-0">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-white/45">
+                    Your configuration
+                  </p>
+                  <h3 className="mt-2 text-2xl font-black">
+                    Ready to print?
+                  </h3>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {selectedOptions.map((option, index) => (
+                      <span
+                        key={option.id + "-" + index}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
+                      >
+                        {option.label}
+                      </span>
+                    ))}
+                    <span className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-white/70">
+                      {quantity} pcs
+                    </span>
+                  </div>
+                  <p className="mt-5 text-sm leading-6 text-white/55">
+                    {designMethod === "editor"
+                      ? "Artwork: PAPR online editor"
+                      : designMethod === "upload"
+                        ? "Artwork: " + (uploadedFile?.name ?? "uploaded file")
+                        : "Choose an artwork option above before adding this item."}
+                  </p>
+
+                  {addStatus === "success" ? (
+                    <div className="mt-6 rounded-2xl bg-emerald-700 p-5 text-white">
+                      <p className="flex items-center gap-2 font-extrabold">
+                        <Check size={19} strokeWidth={3} /> Added to your cart
+                      </p>
+                      <Link
+                        to="/cart"
+                        className="mt-4 flex w-full items-center justify-center rounded-xl bg-white px-5 py-4 font-extrabold text-emerald-800"
+                      >
+                        Review cart
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      {addStatus === "error" && designMethod && (
+                        <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                          {addError}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={addStatus === "submitting"}
+                        onClick={handleAddToCart}
+                        className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ef4d11] px-6 py-5 text-lg font-extrabold text-white shadow-[0_12px_30px_rgba(239,77,17,0.2)] transition hover:-translate-y-0.5 hover:bg-[#ff5a1f] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <ShoppingCart size={20} />
+                        {addStatus === "submitting"
+                          ? "Saving securely…"
+                          : "Add to cart"}
+                      </button>
+                    </>
+                  )}
+
+                  <div className="mt-6 grid grid-cols-3 gap-2 border-t border-white/10 pt-5 text-center text-[11px] font-bold leading-tight text-white/50">
+                    <div className="flex flex-col items-center gap-2">
+                      <PackageCheck className="text-emerald-400" size={21} />
+                      Free artwork proof
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <LockKeyhole className="text-amber-400" size={21} />
+                      Secure payment
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Truck className="text-[#ff6a32]" size={21} />
+                      {deliveryTime} delivery
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
         </main>
 
-        <aside className="border-t border-black/10 p-5 sm:p-8 lg:sticky lg:top-[89px] lg:h-[calc(100vh-89px)] lg:overflow-y-auto lg:border-t-0">
+        <aside className="min-w-0 border-t border-black/10 p-5 sm:p-8 lg:sticky lg:top-24 lg:self-start lg:border-l lg:border-t-0">
           <div className="rounded-3xl border border-black/10 bg-[#faf7f1] p-5">
-            <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-white p-8 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#d8440d]">
+                  Live preview
+                </p>
+                <h2 className="mt-1 text-xl font-black">{product.name}</h2>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700">
+                Updates live
+              </span>
+            </div>
+            <div className="mt-5 flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-white p-8 shadow-sm">
               <div
                 className={`relative flex items-center justify-center border border-black/10 bg-gradient-to-br from-white to-[#eee6d8] shadow-xl ${
                   isFlyer ? "aspect-[1/1.414] w-40 rounded-md" : "aspect-[1.67/1] w-64 rounded-xl"
@@ -734,90 +1043,37 @@ function ProductDetailsPage() {
           </div>
 
           <div className="mt-5 rounded-3xl border border-black/10 bg-white p-6">
-            <h2 className="text-2xl font-black">Price summary</h2>
-            <dl className="mt-6 space-y-4 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-black/55">
-                  Base price ({configuration.minimumQuantity} pcs)
-                </dt>
-                <dd className="font-extrabold">
-                  {formatMoney(product.starting_price)}
-                </dd>
-              </div>
-              {pricing.optionAdjustment !== 0 && (
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-black/55">Selected upgrades</dt>
-                  <dd className="font-extrabold">
-                    {pricing.optionAdjustment > 0 ? "+" : "−"}
-                    {formatMoney(Math.abs(pricing.optionAdjustment))}
-                  </dd>
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-lg font-black">Your selections</h3>
+              <a
+                href="#purchase-panel"
+                className="text-xs font-extrabold text-[#d8440d] underline decoration-[#d8440d]/30 underline-offset-4"
+              >
+                Review order
+              </a>
+            </div>
+            <dl className="mt-5 space-y-3 text-sm">
+              {selectionSummary.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between gap-4"
+                >
+                  <dt className="text-black/45">{item.label}</dt>
+                  <dd className="text-right font-extrabold">{item.value}</dd>
                 </div>
-              )}
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-black/55">Quantity ({quantity} pcs)</dt>
-                <dd className="font-extrabold">
-                  ×{pricing.quantityMultiplier.toFixed(1)}
-                </dd>
-              </div>
-              {pricing.volumeDiscount > 0 && (
-                <div className="flex items-center justify-between gap-4 text-emerald-700">
-                  <dt>Volume discount</dt>
-                  <dd className="font-extrabold">
-                    −{formatMoney(pricing.volumeDiscount)}
-                  </dd>
-                </div>
-              )}
+              ))}
             </dl>
-            <div className="my-5 h-px bg-black/15" />
+            <div className="my-5 h-px bg-black/10" />
             <div className="flex items-end justify-between gap-4">
-              <span className="text-lg font-black">Total</span>
-              <span className="text-right text-3xl font-black tracking-tight text-[#e5470e]">
+              <span className="text-sm font-bold text-black/50">Current total</span>
+              <span className="text-2xl font-black tracking-tight text-[#e5470e]">
                 {formatMoney(pricing.total)}
               </span>
-            </div>
-            <p className="mt-2 text-right text-xs text-black/45">
-              {formatMoney(pricing.perUnit)} per piece · tax calculated at checkout
-            </p>
-          </div>
-
-          {addStatus === "success" ? (
-            <div className="mt-5 rounded-3xl bg-emerald-700 p-5 text-white">
-              <p className="flex items-center gap-2 font-extrabold">
-                <Check size={19} strokeWidth={3} /> Added to your cart
-              </p>
-              <Link
-                to="/cart"
-                className="mt-4 flex w-full items-center justify-center rounded-2xl bg-white px-5 py-4 font-extrabold text-emerald-800"
-              >
-                Review cart
-              </Link>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ef4d11] px-6 py-5 text-lg font-extrabold text-white shadow-[0_12px_30px_rgba(239,77,17,0.2)] transition hover:-translate-y-0.5 hover:bg-[#d9410c]"
-            >
-              <ShoppingCart size={20} /> Add to cart
-            </button>
-          )}
-
-          <div className="mt-6 grid grid-cols-3 gap-2 text-center text-[11px] font-bold leading-tight text-black/50">
-            <div className="flex flex-col items-center gap-2">
-              <PackageCheck className="text-emerald-700" size={21} />
-              Free artwork proof
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <LockKeyhole className="text-[#b27a18]" size={21} />
-              Secure payment
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <Truck className="text-[#d8440d]" size={21} />
-              {product.delivery_days} delivery
             </div>
           </div>
         </aside>
       </div>
+      </section>
     </div>
   );
 }

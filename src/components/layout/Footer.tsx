@@ -53,31 +53,37 @@ const trustSignals = [
   { icon: Truck, label: "Singapore-wide delivery" },
 ] as const;
 
-function Footer() {
+type FooterProps = {
+  hideCta?: boolean;
+};
+
+function Footer({ hideCta = false }: FooterProps) {
   return (
     <footer className="overflow-hidden bg-[#11100e] text-white">
-      <div className="border-b border-white/10 bg-[#ef4d11]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">
-              Ready when you are
-            </p>
-            <h2 className="mt-2 max-w-2xl text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-              Put your brand on paper.
-            </h2>
+      {!hideCta && (
+        <div className="border-b border-white/10 bg-[#ef4d11]">
+          <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">
+                Ready when you are
+              </p>
+              <h2 className="mt-2 max-w-2xl text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+                Put your brand on paper.
+              </h2>
+            </div>
+            <Link
+              to="/products"
+              className="group inline-flex w-fit items-center gap-2 rounded-full bg-black px-6 py-4 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+            >
+              Start a print order
+              <ArrowUpRight
+                size={17}
+                className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
+            </Link>
           </div>
-          <Link
-            to="/products"
-            className="group inline-flex w-fit items-center gap-2 rounded-full bg-black px-6 py-4 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
-          >
-            Start a print order
-            <ArrowUpRight
-              size={17}
-              className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            />
-          </Link>
         </div>
-      </div>
+      )}
 
       <div className="mx-auto max-w-7xl px-6 py-12 sm:px-8 lg:px-10 lg:py-16">
         <div className="grid gap-12 lg:grid-cols-[1.15fr_2fr] lg:gap-16">
