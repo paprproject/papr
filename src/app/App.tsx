@@ -6,9 +6,9 @@ import RouteScrollManager from "../components/layout/RouteScrollManager";
 
 function App() {
   const location = useLocation();
-  const isProductDetailPage = /^\/products\/[^/]+\/?$/.test(
-    location.pathname,
-  );
+  const hideFooterCta =
+    /^\/products\/[^/]+\/?$/.test(location.pathname) ||
+    location.pathname.startsWith("/checkout");
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f1ea] text-black">
@@ -19,7 +19,7 @@ function App() {
           <Outlet />
         </div>
       </main>
-      <Footer hideCta={isProductDetailPage} />
+      <Footer hideCta={hideFooterCta} />
       <FloatingChatButton />
     </div>
   );

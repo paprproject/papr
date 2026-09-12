@@ -8,6 +8,7 @@ import B2BPage from "../pages/B2B/B2BPage";
 import ContactPage from "../pages/Contact/ContactPage";
 import CartPage from "../pages/Cart/CartPage";
 import CheckoutPage from "../pages/Checkout/CheckoutPage";
+import CheckoutSuccessPage from "../pages/Checkout/CheckoutSuccessPage";
 import LoginPage from "../pages/Login/LoginPage";
 import AccountPage from "../pages/Account/AccountPage";
 import ProductDetailsPage from "../pages/ProductDetails/ProductDetailsPage";
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "faq", element: <Navigate to="/contact" replace /> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
+      { path: "checkout/success", element: <CheckoutSuccessPage /> },
       { path: "why", element: <Navigate to="/" replace /> },
       { path: "account", element: <AccountPage /> },
       {

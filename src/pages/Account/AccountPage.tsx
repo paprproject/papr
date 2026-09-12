@@ -19,6 +19,7 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import ProductCard from "../../components/product/ProductCard";
 import CustomerArtworkPanel from "../../features/account/CustomerArtworkPanel";
 import SavedAddressesPanel from "../../features/account/SavedAddressesPanel";
+import type { CustomerOrder } from "../../features/account/accountService";
 import { useAuth } from "../../features/auth/useAuth";
 import { useCart } from "../../features/cart/CartContext";
 import { getProductConfiguration } from "../../features/products/productConfiguration";
@@ -67,6 +68,51 @@ function getInitials(name: string) {
     .join("");
 }
 
+function formatOrderDate(value: string) {
+  return new Intl.DateTimeFormat("en-SG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getOrderStatus(status: CustomerOrder["status"]) {
+  const statuses = {
+    pending_payment: {
+      label: "Confirming payment",
+      description: "Waiting for Stripe’s signed payment confirmation.",
+      className: "bg-amber-100 text-amber-800",
+    },
+    paid: {
+      label: "Payment confirmed",
+      description: "Your order is queued for artwork review and proofing.",
+      className: "bg-emerald-100 text-emerald-800",
+    },
+    payment_failed: {
+      label: "Payment failed",
+      description: "Payment was not completed. Your cart remains available.",
+      className: "bg-red-100 text-red-700",
+    },
+    cancelled: {
+      label: "Cancelled",
+      description: "This checkout expired or was cancelled before payment.",
+      className: "bg-black/5 text-black/55",
+    },
+    refunded: {
+      label: "Refunded",
+      description: "This order’s payment has been refunded.",
+      className: "bg-blue-100 text-blue-800",
+    },
+  } satisfies Record<
+    CustomerOrder["status"],
+    { label: string; description: string; className: string }
+  >;
+
+  return statuses[status];
+}
+
 function AccountPage() {
   const {
     user,
@@ -76,6 +122,7 @@ function AccountPage() {
     favoriteProductIds,
     savedAddresses,
     customerFiles,
+    orders,
     updateProfile,
     signOut,
   } = useAuth();
@@ -135,6 +182,9 @@ function AccountPage() {
     (sum, item) => sum + (item.totalPrice ?? item.product.starting_price),
     0,
   );
+  const confirmedOrderCount = orders.filter(
+    (order) => order.status === "paid",
+  ).length;
 
   function selectTab(tab: AccountTab) {
     setSearchParams(tab === "overview" ? {} : { tab });
@@ -258,7 +308,10 @@ function AccountPage() {
               </p>
 
               <div className="mt-8 grid grid-cols-2 gap-3 xl:grid-cols-5">
-                <StatCard value="0" label="Confirmed orders" />
+                <StatCard
+                  value={String(confirmedOrderCount)}
+                  label="Confirmed orders"
+                />
                 <StatCard value={String(cartItems.length)} label="Items in cart" />
                 <StatCard
                   value={String(customerFiles.length)}
@@ -369,8 +422,8 @@ function AccountPage() {
                 Follow every print job.
               </h2>
               <p className="mt-3 text-sm leading-6 text-black/50">
-                Confirmed orders will show their proof, production, transit, and
-                delivery updates here.
+                Review payment status, product details, delivery method, and
+                the next step for every checkout.
               </p>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -393,13 +446,98 @@ function AccountPage() {
                 ))}
               </div>
 
-              <EmptyAccountState
-                icon={PackageOpen}
-                title="No confirmed orders yet"
-                description="Once you complete checkout, your order timeline and delivery updates will appear here."
-                actionLabel="Start a print order"
-                actionTo="/products"
-              />
+              {orders.length === 0 ? (
+                <EmptyAccountState
+                  icon={PackageOpen}
+                  title="No orders yet"
+                  description="Once you complete checkout, your payment status and order details will appear here."
+                  actionLabel="Start a print order"
+                  actionTo="/products"
+                />
+              ) : (
+                <div className="mt-7 space-y-4">
+                  {orders.map((order) => {
+                    const status = getOrderStatus(order.status);
+                    return (
+                      <article
+                        key={order.id}
+                        className="overflow-hidden rounded-2xl border border-black/10 bg-white"
+                      >
+                        <header className="flex flex-col gap-4 border-b border-black/10 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-black/35">
+                              Order {order.id.slice(0, 8).toUpperCase()}
+                            </p>
+                            <p className="mt-2 text-sm font-bold text-black/60">
+                              {formatOrderDate(order.paidAt ?? order.createdAt)}
+                            </p>
+                          </div>
+                          <span
+                            className={`w-fit rounded-full px-3 py-1.5 text-xs font-extrabold ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        </header>
+
+                        <div className="px-5 py-5 sm:px-6">
+                          <div className="space-y-3">
+                            {order.items.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-4 rounded-xl bg-[#faf7f1] p-4"
+                              >
+                                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-[#d8440d]">
+                                  <PackageOpen size={20} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="truncate text-sm font-extrabold">
+                                    {item.productName}
+                                  </h3>
+                                  <p className="mt-1 truncate text-xs text-black/45">
+                                    {[item.size, item.material, item.finish]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                    {item.quantity > 0
+                                      ? ` · ${item.quantity.toLocaleString()} pcs`
+                                      : ""}
+                                  </p>
+                                </div>
+                                <p className="shrink-0 text-sm font-black">
+                                  {formatMoney(item.totalPriceCents / 100)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-5 grid gap-4 border-t border-black/10 pt-5 sm:grid-cols-[1fr_auto] sm:items-end">
+                            <div>
+                              <p className="text-sm font-extrabold">
+                                {status.description}
+                              </p>
+                              <p className="mt-2 text-xs text-black/45">
+                                {order.deliveryMethod === "priority"
+                                  ? "Priority courier"
+                                  : "Standard delivery"}
+                                {order.deliveryAddress.postalCode
+                                  ? ` · Singapore ${order.deliveryAddress.postalCode}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <div className="sm:text-right">
+                              <p className="text-xs font-bold uppercase tracking-[0.1em] text-black/35">
+                                Order total
+                              </p>
+                              <p className="mt-1 text-2xl font-black text-[#d8440d]">
+                                {formatMoney(order.totalCents / 100)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
               <p className="mt-5 text-center text-xs text-black/40">
                 Looking for an existing order?{" "}
                 <Link to="/contact" className="font-bold text-[#d8440d]">

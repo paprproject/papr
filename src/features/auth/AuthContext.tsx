@@ -22,6 +22,7 @@ const emptyAccountState: AccountState = {
   favoriteProductIds: [],
   savedAddresses: [],
   customerFiles: [],
+  orders: [],
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -109,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     : [];
   const savedAddresses = ownsLoadedState ? accountState.savedAddresses : [];
   const customerFiles = ownsLoadedState ? accountState.customerFiles : [];
+  const orders = ownsLoadedState ? accountState.orders : [];
   const accountError = ownsLoadedState ? accountState.error : "";
   const loading =
     authLoading || Boolean(user && accountState.userId !== user.id);
@@ -403,6 +405,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         favoriteProductIds,
         savedAddresses,
         customerFiles,
+        orders,
         signUp,
         signIn,
         signOut,

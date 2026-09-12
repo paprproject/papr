@@ -6,6 +6,7 @@ import type {
 } from "../account/savedAddresses";
 import type {
   CustomerFile,
+  CustomerOrder,
   CustomerProfile,
 } from "../account/accountService";
 
@@ -18,6 +19,7 @@ export type AuthContextValue = {
   favoriteProductIds: string[];
   savedAddresses: SavedAddress[];
   customerFiles: CustomerFile[];
+  orders: CustomerOrder[];
   signUp: (
     email: string,
     password: string,

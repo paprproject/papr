@@ -149,7 +149,7 @@ The core product promise is: customers can choose a print product, price it quic
 - Cart items must store a product snapshot to preserve order context if catalogue data changes later.
 - Cart must support add, remove, clear, refresh, loading, error, and count states.
 - Cart must detach linked customer files when items are removed or cart is cleared.
-- Future requirement: cart should proceed into a completed checkout and order submission flow.
+- Cart must proceed into an authenticated Stripe sandbox checkout and order submission flow.
 
 ### Artwork Uploads
 
@@ -173,9 +173,12 @@ The core product promise is: customers can choose a print product, price it quic
 
 ### Checkout And Orders
 
-- Current checkout page is a placeholder.
+- Checkout must collect contact details, a saved delivery address, delivery method, order confirmation, and show the cart total before redirecting to Stripe.
 - MVP checkout must collect or confirm delivery address, contact details, production notes, artwork status, cart totals, tax/shipping assumptions, and payment method.
 - Checkout must create durable order records and order item records.
+- Stripe amounts must be calculated server-side from the current product catalogue and accepted configuration rules.
+- Stripe secret keys must stay in server-only Supabase Edge Function secrets.
+- Payment status must be confirmed by a signed Stripe webhook, not by a browser redirect.
 - Submitted artwork statuses should move from `attached_to_cart` to `submitted`.
 - Cart should clear only after successful order creation/payment handoff.
 - Orders account tab should show submitted order history and statuses once backend order records exist.
@@ -218,6 +221,8 @@ The core product promise is: customers can choose a print product, price it quic
 - `customer_profiles`
 - `favorite_products`
 - `saved_addresses`
+- `orders`
+- `order_items`
 
 ### Supabase Storage Buckets Currently Implied
 
@@ -225,9 +230,6 @@ The core product promise is: customers can choose a print product, price it quic
 
 ### Future Tables Needed
 
-- `orders`
-- `order_items`
-- `payments` or payment handoff records
 - `editor_designs`
 - `enquiries`
 - `product_configurations`

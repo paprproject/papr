@@ -24,11 +24,42 @@ export type CustomerFile = {
   createdAt: string;
 };
 
+export type CustomerOrderItem = {
+  id: string;
+  productName: string;
+  quantity: number;
+  totalPriceCents: number;
+  size: string;
+  material: string;
+  finish: string;
+};
+
+export type CustomerOrder = {
+  id: string;
+  status:
+    | "pending_payment"
+    | "paid"
+    | "payment_failed"
+    | "cancelled"
+    | "refunded";
+  currency: string;
+  totalCents: number;
+  deliveryMethod: "standard" | "priority";
+  deliveryAddress: {
+    recipientName?: string;
+    postalCode?: string;
+  };
+  paidAt: string | null;
+  createdAt: string;
+  items: CustomerOrderItem[];
+};
+
 export type CustomerAccountData = {
   profile: CustomerProfile;
   favoriteProductIds: string[];
   savedAddresses: SavedAddress[];
   customerFiles: CustomerFile[];
+  orders: CustomerOrder[];
 };
 
 type CustomerProfileRow = {
@@ -50,6 +81,58 @@ type CustomerFileRow = {
   status: CustomerFile["status"];
   created_at: string;
 };
+
+type CustomerOrderItemRow = {
+  id: string;
+  product_snapshot: unknown;
+  configuration: unknown;
+  quantity: number;
+  total_price_cents: number;
+};
+
+type CustomerOrderRow = {
+  id: string;
+  status: CustomerOrder["status"];
+  currency: string;
+  total_cents: number;
+  delivery_method: CustomerOrder["deliveryMethod"];
+  delivery_address: unknown;
+  paid_at: string | null;
+  created_at: string;
+  order_items: CustomerOrderItemRow[] | null;
+};
+
+function getStringProperty(value: unknown, property: string) {
+  if (!value || typeof value !== "object") return "";
+  const propertyValue = (value as Record<string, unknown>)[property];
+  return typeof propertyValue === "string" ? propertyValue : "";
+}
+
+function customerOrderFromRow(row: CustomerOrderRow): CustomerOrder {
+  return {
+    id: row.id,
+    status: row.status,
+    currency: row.currency,
+    totalCents: row.total_cents,
+    deliveryMethod: row.delivery_method,
+    deliveryAddress: {
+      recipientName: getStringProperty(row.delivery_address, "recipientName"),
+      postalCode: getStringProperty(row.delivery_address, "postalCode"),
+    },
+    paidAt: row.paid_at,
+    createdAt: row.created_at,
+    items: (row.order_items ?? []).map((item) => ({
+      id: item.id,
+      productName:
+        getStringProperty(item.product_snapshot, "name") || "Print product",
+      quantity: item.quantity,
+      totalPriceCents: item.total_price_cents,
+      size: getStringProperty(item.configuration, "size"),
+      material: getStringProperty(item.configuration, "material"),
+      finish: getStringProperty(item.configuration, "finish"),
+    })),
+  };
+}
 
 function profileFromRow(row: CustomerProfileRow): CustomerProfile {
   return {
@@ -127,7 +210,7 @@ async function loadOrCreateProfile(user: User): Promise<CustomerProfile> {
 export async function loadCustomerAccountData(
   user: User,
 ): Promise<CustomerAccountData> {
-  const [profile, favoritesResult, addressesResult, filesResult] =
+  const [profile, favoritesResult, addressesResult, filesResult, ordersResult] =
     await Promise.all([
       loadOrCreateProfile(user),
       supabase
@@ -150,11 +233,19 @@ export async function loadCustomerAccountData(
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("orders")
+        .select(
+          "id, status, currency, total_cents, delivery_method, delivery_address, paid_at, created_at, order_items(id, product_snapshot, configuration, quantity, total_price_cents)",
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
     ]);
 
   if (favoritesResult.error) throw favoritesResult.error;
   if (addressesResult.error) throw addressesResult.error;
   if (filesResult.error) throw filesResult.error;
+  if (ordersResult.error) throw ordersResult.error;
 
   return {
     profile,
@@ -166,6 +257,9 @@ export async function loadCustomerAccountData(
     ).map(savedAddressFromRow),
     customerFiles: ((filesResult.data ?? []) as CustomerFileRow[]).map(
       customerFileFromRow,
+    ),
+    orders: ((ordersResult.data ?? []) as CustomerOrderRow[]).map(
+      customerOrderFromRow,
     ),
   };
 }
